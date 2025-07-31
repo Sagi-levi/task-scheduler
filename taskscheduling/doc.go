@@ -11,6 +11,8 @@ panics can occur.
 
 Configurable option to repeat tasks as wished by the user,option to change the
 task name, option to log info about the task using the opts pattern.
+
+The package provides an option to print a summary of your task executions.
 */
 package taskscheduling
 

@@ -3,6 +3,7 @@ package taskscheduling
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -164,4 +165,68 @@ func (s *Scheduler) runCleanup() {
 	close(s.resultHandler.buffer)
 	s.resultHandler.wg.Wait()
 	close(s.shutdown)
+}
+
+// Summary generates and displays a detailed execution report, including statistics and per-task results.
+func (s *Scheduler) Summary() {
+	failed := s.runCounters.failed.Load()
+	repetitions := s.runCounters.done.Load()
+	succeeded := int(repetitions) - int(failed)
+
+	results := s.getResults()
+
+	longestName := 0
+	for _, r := range results {
+		if n := len(r.task.name); n > longestName {
+			longestName = n
+		}
+	}
+
+	const fixedPart = " rep:000 ➜ ERR"
+	innerWidth := longestName + len(fixedPart)
+	if innerWidth < 40 {
+		innerWidth = 40
+	}
+
+	borderTop := "╔" + strings.Repeat("═", innerWidth) + "╗"
+	borderMiddle := "╠" + strings.Repeat("═", innerWidth) + "╣"
+	borderBottom := "╚" + strings.Repeat("═", innerWidth) + "╝"
+
+	center := func(s string) string {
+		if len(s) >= innerWidth {
+			return s
+		}
+		left := (innerWidth - len(s)) / 2
+		right := innerWidth - len(s) - left
+		return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+	}
+
+	fmt.Println(borderTop)
+	fmt.Printf("║%s║\n", center("Scheduler Execution Report"))
+	fmt.Println(borderMiddle)
+
+	statLine := func(label string, val int32) {
+		txt := fmt.Sprintf("%-23s : %5d", label, val)
+		fmt.Printf("║ %-*s ║\n", innerWidth-1, txt)
+	}
+
+	statLine("Registered tasks", int32(s.registered))
+	statLine("Total executions", repetitions)
+	statLine("Successful executions", int32(succeeded))
+	statLine("Failed executions", failed)
+
+	fmt.Println(borderMiddle)
+	fmt.Printf("║%s║\n", center("Per-Task Results"))
+	fmt.Println(borderMiddle)
+
+	for _, r := range results {
+		status := "OK "
+		if !r.isOk {
+			status = "ERR"
+		}
+		line := fmt.Sprintf("%-*s rep:%3d ➜ %s", longestName, r.task.name, r.rep, status)
+		fmt.Printf("║ %-*s ║\n", innerWidth-1, line)
+	}
+
+	fmt.Println(borderBottom)
 }
