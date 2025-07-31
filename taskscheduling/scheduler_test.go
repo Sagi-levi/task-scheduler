@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 )
@@ -175,4 +176,53 @@ func createTestLogger() (*slog.Logger, *bytes.Buffer) {
 	var logger *slog.Logger
 	logger = slog.New(slog.NewTextHandler(buf, nil))
 	return logger, buf
+}
+
+// Example demonstrates the creation, registration, execution, and summary of
+// tasks using the Scheduler infrastructure. Dropping the time key provides us
+// consistent output.
+func ExampleScheduler() {
+	s, err := New(10, 1)
+	if err != nil {
+		panic(err)
+	}
+	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				// Drop the time field, necessary for consistent output.
+				return slog.Attr{}
+			}
+			return a
+
+		}})
+	logger := slog.New(logHandler)
+
+	task := func() error {
+		return errors.New("error")
+	}
+	err = s.Register(task, WithName("best task ever"), WithLogging(logger), WithRetry(1))
+	if err != nil {
+		panic(err)
+	}
+	s.Run()
+	s.Stop()
+	s.Summary()
+	//Output:
+	//level=INFO msg=registered
+	//level=INFO msg="running task: best task ever with worker: 0"
+	//level=INFO msg="running task-best task ever attempt 1"
+	//level=INFO msg="failed task-best task ever attempt 1"
+	//level=INFO msg="finished task-best task ever attempt 1"
+	//╔════════════════════════════════════════╗
+	//║       Scheduler Execution Report       ║
+	//╠════════════════════════════════════════╣
+	//║ Registered tasks        :     1         ║
+	//║ Total executions        :     1         ║
+	//║ Successful executions   :     0         ║
+	//║ Failed executions       :     1         ║
+	//╠════════════════════════════════════════╣
+	//║            Per-Task Results            ║
+	//╠════════════════════════════════════════╣
+	//║ best task ever rep:  0 ➜ ERR            ║
+	//╚════════════════════════════════════════╝
 }
