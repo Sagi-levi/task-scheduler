@@ -1,7 +1,10 @@
 package taskscheduling
 
 import (
+	"bytes"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 )
 
@@ -98,16 +101,18 @@ func TestScheduler(t *testing.T) {
 			t.Log(`isOk all counter is correct`)
 		}
 	})
-	// Testing with retry, with name
+	// Testing with retry, with name and with logging
 	tests := []struct {
-		name        string
-		retries     int
-		totalDone   int
-		totalFailed int
-		taskName    string
+		name              string
+		retries           int
+		totalDone         int
+		totalFailed       int
+		taskName          string
+		shouldFindMessage string
+		shouldFind        bool
 	}{
-		{"test failed task with retry", 3, 3, 3, ""},
-		{"test failed task with out retry ,with name", 1, 1, 1, "best task"},
+		{"test failed task with retry and with logging", 3, 3, 3, "", "registered", true},
+		{"test failed task with out retry ,with name and with logging", 1, 1, 1, "best task", "banana", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,10 +123,11 @@ func TestScheduler(t *testing.T) {
 			task := func() error {
 				return errors.New("test error")
 			}
+			logger, buf := createTestLogger()
 			if tt.taskName != "" {
-				err = s.Register(task, WithName(tt.taskName))
+				err = s.Register(task, WithName(tt.taskName), WithLogging(logger))
 			} else {
-				err = s.Register(task, WithRetry(tt.retries))
+				err = s.Register(task, WithRetry(tt.retries), WithLogging(logger))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -147,6 +153,26 @@ func TestScheduler(t *testing.T) {
 					t.Log(`task name updated as expected`)
 				}
 			}
+
+			// Assert with logging
+			output := buf.String()
+			hasMessage := strings.Contains(output, tt.shouldFindMessage)
+			if tt.shouldFind && !hasMessage {
+				t.Errorf("Expected to find '%s' in logs, got: %s",
+					tt.shouldFindMessage, output)
+			} else if !tt.shouldFind && hasMessage {
+				t.Errorf("Did not expect to find '%s' in logs, got: %s",
+					tt.shouldFindMessage, output)
+			} else {
+				t.Log(`expected log messages were captured`)
+			}
 		})
 	}
+}
+
+func createTestLogger() (*slog.Logger, *bytes.Buffer) {
+	buf := &bytes.Buffer{}
+	var logger *slog.Logger
+	logger = slog.New(slog.NewTextHandler(buf, nil))
+	return logger, buf
 }

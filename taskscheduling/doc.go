@@ -10,7 +10,7 @@ The guidelines of this package include:
 panics can occur.
 
 Configurable option to repeat tasks as wished by the user,option to change the
-task name, using the opts pattern.
+task name, option to log info about the task using the opts pattern.
 */
 package taskscheduling
 

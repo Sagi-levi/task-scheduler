@@ -81,6 +81,7 @@ func (s *Scheduler) Register(task Task, opts ...Opts) error {
 	}
 	select {
 	case s.pending <- newTask:
+		newTask.log("registered")
 		return nil
 	case <-s.shutdown:
 		return errors.New("scheduler is stopped")
@@ -103,6 +104,7 @@ func (s *Scheduler) Run() {
 		go func() {
 			defer s.tasksWg.Done()
 			for task := range s.pending {
+				task.log("running task: %v with worker: %v", task.name, i)
 				s.taskRetry(task)
 			}
 		}()
@@ -112,15 +114,18 @@ func (s *Scheduler) Run() {
 
 func (s *Scheduler) taskRetry(task taskHandler) {
 	for i := 0; i < task.retries; i++ {
+		task.log("running task-%v attempt %v", task.name, i+1)
 		result := result{
 			task: task,
 			rep:  i,
 		}
 		if err := task.run(); err != nil {
 			s.runCounters.failed.Add(1)
+			task.log("failed task-%v attempt %v", task.name, i+1)
 		} else {
 			result.isOk = true
 		}
+		task.log("finished task-%v attempt %v", task.name, i+1)
 		s.runCounters.done.Add(1)
 		s.resultHandler.buffer <- result
 		if result.isOk {

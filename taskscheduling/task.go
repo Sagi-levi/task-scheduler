@@ -1,6 +1,9 @@
 package taskscheduling
 
 import (
+	"fmt"
+	"log/slog"
+
 	"github.com/google/uuid"
 )
 
@@ -13,10 +16,18 @@ type taskHandler struct {
 	name    string
 	fn      Task
 	retries int
+	logger  *slog.Logger
 }
 
 func (t *taskHandler) run() error {
 	return t.fn()
+}
+
+func (t *taskHandler) log(format string, a ...any) {
+	if t.logger != nil {
+		msg := fmt.Sprintf(format, a...)
+		t.logger.Info(msg)
+	}
 }
 
 type result struct {

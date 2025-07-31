@@ -1,5 +1,9 @@
 package taskscheduling
 
+import (
+	"log/slog"
+)
+
 // Opts is a function type used to modify or configure taskHandler instances
 // prior to execution.
 type Opts func(handler *taskHandler)
@@ -21,5 +25,12 @@ func WithRetry(retries int) Opts {
 func WithName(name string) Opts {
 	return func(task *taskHandler) {
 		task.name = name
+	}
+}
+
+// WithLogging enables logging for a taskHandler using the provided slog.Logger.
+func WithLogging(logger *slog.Logger) Opts {
+	return func(task *taskHandler) {
+		task.logger = logger
 	}
 }
