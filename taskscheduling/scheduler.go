@@ -2,7 +2,10 @@ package taskscheduling
 
 import (
 	"errors"
+	"fmt"
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 // Scheduler manages the scheduling, execution, and reporting of tasks with
@@ -33,4 +36,23 @@ func New(taskChannelBuffer, concurrentWorkerLimit int) (*Scheduler, error) {
 		shutdown:              make(chan struct{}),
 		concurrentWorkerLimit: concurrentWorkerLimit,
 	}, nil
+}
+
+// Register adds a task or process to the Scheduler for execution as per its
+// scheduling configuration.
+func (s *Scheduler) Register(task Task) error {
+	taskId := uuid.New()
+	newTask := taskHandler{
+		fn:   task,
+		id:   taskId,
+		name: fmt.Sprintf("task-%v", taskId),
+	}
+	select {
+	case s.pending <- newTask:
+		return nil
+	case <-s.shutdown:
+		return nil
+	default:
+		return errors.New("channel is full")
+	}
 }
