@@ -18,3 +18,9 @@ type taskHandler struct {
 func (t *taskHandler) run() error {
 	return t.fn()
 }
+
+type result struct {
+	task taskHandler
+	rep  int
+	isOk bool
+}

@@ -75,6 +75,28 @@ func TestScheduler(t *testing.T) {
 		} else {
 			t.Log(`done tasks counter is correct`)
 		}
+		resultsCounter := len(s.resultHandler.all)
+		expectedResultsCounter := 4
+		if expectedResultsCounter != resultsCounter {
+			t.Errorf("expected %v, got %v", expectedResultsCounter, resultsCounter)
+		} else {
+			t.Log(`all counter is correct`)
+		}
+		filterResults := make([]result, 0)
+		for _, result := range s.resultHandler.all {
+			if result.isOk {
+				filterResults = append(filterResults, result)
+			}
+		}
+		filterResultsCounter := len(filterResults)
+		// Deeper check of the resultHandler mechanism, comparing the number of tasks that
+		// didn't failed.
+		expectedFilterResultsCounter := 3
+		if filterResultsCounter != expectedFilterResultsCounter {
+			t.Errorf("expected %v, got %v", expectedFilterResultsCounter, filterResultsCounter)
+		} else {
+			t.Log(`isOk all counter is correct`)
+		}
 	})
 	// Testing with retry
 	tests := []struct {
