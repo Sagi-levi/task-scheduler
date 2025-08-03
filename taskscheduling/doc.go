@@ -9,7 +9,8 @@ The guidelines of this package include:
 - Stop function can be called only after Run function was called, otherwise
 panics can occur.
 
-Configurable option to repeat tasks as wished by the user.
+Configurable option to repeat tasks as wished by the user,option to change the
+task name, using the opts pattern.
 */
 package taskscheduling
 

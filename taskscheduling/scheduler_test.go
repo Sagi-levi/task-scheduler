@@ -98,15 +98,16 @@ func TestScheduler(t *testing.T) {
 			t.Log(`isOk all counter is correct`)
 		}
 	})
-	// Testing with retry
+	// Testing with retry, with name
 	tests := []struct {
 		name        string
 		retries     int
 		totalDone   int
 		totalFailed int
+		taskName    string
 	}{
-		{"test failed task with retry", 3, 3, 3},
-		{"test failed task with out retry", 1, 1, 1},
+		{"test failed task with retry", 3, 3, 3, ""},
+		{"test failed task with out retry ,with name", 1, 1, 1, "best task"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -114,11 +115,16 @@ func TestScheduler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = s.Register(func() error {
+			task := func() error {
 				return errors.New("test error")
-			}, WithRetry(tt.retries))
-			if err != nil {
-				t.Fatal(err)
+			}
+			if tt.taskName != "" {
+				err = s.Register(task, WithName(tt.taskName))
+			} else {
+				err = s.Register(task, WithRetry(tt.retries))
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 			s.Run()
 			s.Stop()
@@ -131,6 +137,15 @@ func TestScheduler(t *testing.T) {
 			got = s.runCounters.failed.Load()
 			if int32(expected) != got {
 				t.Errorf("expected %v, got %v", expected, got)
+			}
+
+			// Asserting with name capability.
+			if tt.taskName != "" {
+				if s.resultHandler.all[0].task.name != tt.taskName {
+					t.Errorf("expected task with name %v, got %v", tt.taskName, s.resultHandler.all[0].task.name)
+				} else {
+					t.Log(`task name updated as expected`)
+				}
 			}
 		})
 	}

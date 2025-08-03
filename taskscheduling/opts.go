@@ -15,3 +15,11 @@ func WithRetry(retries int) Opts {
 		task.retries = retries
 	}
 }
+
+// WithName sets a custom name for a task by modifying its `taskHandler`
+// configuration.
+func WithName(name string) Opts {
+	return func(task *taskHandler) {
+		task.name = name
+	}
+}
