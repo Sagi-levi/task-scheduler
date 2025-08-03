@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 )
@@ -15,6 +16,13 @@ type Scheduler struct {
 	shutdown              chan struct{}
 	tasksWg               sync.WaitGroup
 	concurrentWorkerLimit int
+	registered            int
+	runCounters           runCounters
+}
+
+type runCounters struct {
+	done   atomic.Int32
+	failed atomic.Int32
 }
 
 // New creates and returns a Scheduler with the specified task channel size
@@ -55,4 +63,31 @@ func (s *Scheduler) Register(task Task) error {
 	default:
 		return errors.New("channel is full")
 	}
+}
+
+// Run initializes the Scheduler, beginning the execution of scheduled tasks or
+// processes. Tasks aren't allowed to register after calling Run, and run can't
+// be called more than once.
+func (s *Scheduler) Run() {
+	// We can measure the registered count using len of task channel because we won't
+	// allow tasks to be registered after Run.
+	s.registered = len(s.pending)
+	for i := 0; i < s.concurrentWorkerLimit; i++ {
+		s.tasksWg.Add(1)
+		go func() {
+			defer s.tasksWg.Done()
+			for task := range s.pending {
+				if err := task.run(); err != nil {
+					s.runCounters.failed.Add(1)
+				}
+				s.runCounters.done.Add(1)
+			}
+		}()
+	}
+	go s.runCleanup()
+}
+
+func (s *Scheduler) runCleanup() {
+	s.tasksWg.Wait()
+	close(s.shutdown)
 }

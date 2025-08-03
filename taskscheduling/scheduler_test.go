@@ -41,5 +41,14 @@ func TestScheduler(t *testing.T) {
 		} else {
 			t.Log("channel is full as expected")
 		}
+		s.Run()
+		expected := bufferSize
+		got := s.registered
+		// It's not allowed to use Register after Run, we get the register
+		// counter correctly after Run function.
+		if expected != got {
+			t.Fatalf("expected %v, got %v", expected, got)
+		}
+		t.Log(`registered counter is correct`)
 	})
 }

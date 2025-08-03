@@ -13,3 +13,7 @@ type taskHandler struct {
 	name string
 	fn   Task
 }
+
+func (t *taskHandler) run() error {
+	return t.fn()
+}
