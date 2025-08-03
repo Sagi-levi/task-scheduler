@@ -50,5 +50,30 @@ func TestScheduler(t *testing.T) {
 			t.Fatalf("expected %v, got %v", expected, got)
 		}
 		t.Log(`registered counter is correct`)
+		s.Stop()
+		panicTask := func() error {
+			return nil
+		}
+		err = s.Register(panicTask)
+		// Since stoping the scheduler close the channel, we can't write new tasks to the
+		// task channel.
+		if err == nil {
+			t.Fatalf("expected error when registering after Stop(), got none")
+		}
+		t.Log("got expected error when registering after Stop()")
+		failedTasks := s.runCounters.failed.Load()
+		expectedFailedTasks := int32(1)
+		if expected != got {
+			t.Errorf("expected %v, got %v", expectedFailedTasks, failedTasks)
+		} else {
+			t.Log(`failed tasks counter is correct`)
+		}
+		doneTasks := s.runCounters.done.Load()
+		expectedDoneTasks := int32(4)
+		if expectedDoneTasks != doneTasks {
+			t.Errorf("expected %v, got %v", expectedDoneTasks, doneTasks)
+		} else {
+			t.Log(`done tasks counter is correct`)
+		}
 	})
 }

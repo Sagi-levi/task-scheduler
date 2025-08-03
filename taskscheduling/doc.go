@@ -6,6 +6,8 @@ This package enables you to schedule and execute tasks concurrently.
 The guidelines of this package include:
 - Tasks must be registered before their scheduler starts running.
 - Each scheduler can be run only once, otherwise panics can occur.
+- Stop function can be called only after Run function was called, otherwise
+panics can occur.
 */
 package taskscheduling
 

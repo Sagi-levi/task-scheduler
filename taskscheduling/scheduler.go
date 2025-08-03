@@ -18,6 +18,7 @@ type Scheduler struct {
 	concurrentWorkerLimit int
 	registered            int
 	runCounters           runCounters
+	inProgress            atomic.Bool
 }
 
 type runCounters struct {
@@ -39,16 +40,23 @@ func New(taskChannelBuffer, concurrentWorkerLimit int) (*Scheduler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Scheduler{
+	scheduler := &Scheduler{
 		pending:               make(chan taskHandler, taskChannelBuffer),
 		shutdown:              make(chan struct{}),
 		concurrentWorkerLimit: concurrentWorkerLimit,
-	}, nil
+	}
+	scheduler.inProgress.Store(true)
+	return scheduler, nil
+
 }
 
 // Register adds a task or process to the Scheduler for execution as per its
 // scheduling configuration.
 func (s *Scheduler) Register(task Task) error {
+	if !s.inProgress.Load() {
+		return errors.New("scheduler is stopped")
+	}
+
 	taskId := uuid.New()
 	newTask := taskHandler{
 		fn:   task,
@@ -59,7 +67,7 @@ func (s *Scheduler) Register(task Task) error {
 	case s.pending <- newTask:
 		return nil
 	case <-s.shutdown:
-		return nil
+		return errors.New("scheduler is stopped")
 	default:
 		return errors.New("channel is full")
 	}
@@ -90,4 +98,12 @@ func (s *Scheduler) Run() {
 func (s *Scheduler) runCleanup() {
 	s.tasksWg.Wait()
 	close(s.shutdown)
+}
+
+// Stop the execution of the Scheduler, stopping any ongoing tasks or processes.
+// Stop can't be called more than once.
+func (s *Scheduler) Stop() {
+	s.inProgress.Store(false)
+	close(s.pending)
+	<-s.shutdown
 }
