@@ -8,6 +8,8 @@ The guidelines of this package include:
 - Each scheduler can be run only once, otherwise panics can occur.
 - Stop function can be called only after Run function was called, otherwise
 panics can occur.
+
+Configurable option to repeat tasks as wished by the user.
 */
 package taskscheduling
 

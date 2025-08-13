@@ -76,4 +76,40 @@ func TestScheduler(t *testing.T) {
 			t.Log(`done tasks counter is correct`)
 		}
 	})
+	// Testing with retry
+	tests := []struct {
+		name        string
+		retries     int
+		totalDone   int
+		totalFailed int
+	}{
+		{"test failed task with retry", 3, 3, 3},
+		{"test failed task with out retry", 1, 1, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := New(10, 10)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = s.Register(func() error {
+				return errors.New("test error")
+			}, WithRetry(tt.retries))
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.Run()
+			s.Stop()
+			expected := tt.totalDone
+			got := s.runCounters.done.Load()
+			if int32(expected) != got {
+				t.Errorf("expected %v, got %v", expected, got)
+			}
+			expected = tt.totalFailed
+			got = s.runCounters.failed.Load()
+			if int32(expected) != got {
+				t.Errorf("expected %v, got %v", expected, got)
+			}
+		})
+	}
 }

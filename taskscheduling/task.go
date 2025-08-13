@@ -9,9 +9,10 @@ import (
 type Task func() error
 
 type taskHandler struct {
-	id   uuid.UUID
-	name string
-	fn   Task
+	id      uuid.UUID
+	name    string
+	fn      Task
+	retries int
 }
 
 func (t *taskHandler) run() error {

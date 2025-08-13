@@ -52,16 +52,19 @@ func New(taskChannelBuffer, concurrentWorkerLimit int) (*Scheduler, error) {
 
 // Register adds a task or process to the Scheduler for execution as per its
 // scheduling configuration.
-func (s *Scheduler) Register(task Task) error {
+func (s *Scheduler) Register(task Task, opts ...Opts) error {
 	if !s.inProgress.Load() {
 		return errors.New("scheduler is stopped")
 	}
-
 	taskId := uuid.New()
 	newTask := taskHandler{
-		fn:   task,
-		id:   taskId,
-		name: fmt.Sprintf("task-%v", taskId),
+		fn:      task,
+		id:      taskId,
+		name:    fmt.Sprintf("task-%v", taskId),
+		retries: 1,
+	}
+	for _, opt := range opts {
+		opt(&newTask)
 	}
 	select {
 	case s.pending <- newTask:
@@ -85,14 +88,21 @@ func (s *Scheduler) Run() {
 		go func() {
 			defer s.tasksWg.Done()
 			for task := range s.pending {
-				if err := task.run(); err != nil {
-					s.runCounters.failed.Add(1)
-				}
-				s.runCounters.done.Add(1)
+				s.taskRetry(task)
 			}
 		}()
 	}
 	go s.runCleanup()
+}
+
+func (s *Scheduler) taskRetry(task taskHandler) {
+	for i := 0; i < task.retries; i++ {
+		err := task.run()
+		s.runCounters.done.Add(1)
+		if err != nil {
+			s.runCounters.failed.Add(1)
+		}
+	}
 }
 
 func (s *Scheduler) runCleanup() {
